@@ -1,43 +1,48 @@
 import streamlit as st
+import geopandas as gpd
 import folium
 from streamlit_folium import st_folium
 from utils.osm_utils import get_city_data
-import geopandas as gpd
 
-st.set_page_config(page_title="Smart Residential Map Viewer", layout="wide")
+st.set_page_config(page_title="Smart Residential Location Viewer", layout="wide")
 
-st.title("🏡 Smart Residential Location Viewer")
-city_name = st.text_input("Enter a city or town name:", placeholder="e.g., San Francisco, USA")
+st.title("📍 Smart Residential Location Viewer")
+st.markdown("Enter a city name below to view its streets and buildings from OpenStreetMap.")
 
-if city_name:
-    with st.spinner(f"Fetching map data for {city_name}..."):
-        boundary, streets, buildings = get_city_data(city_name)
+# Input field
+city = st.text_input("Enter city name (e.g., New York, Paris, Tokyo):")
 
-    if isinstance(buildings, str):  # error message
-        st.error(buildings)
-    elif boundary is not None:
-        st.success("Data loaded successfully!")
+# Map render
+if city:
+    with st.spinner("Fetching data..."):
+        city_boundary, streets, buildings, result_info = get_city_data(city)
 
-        # Initialize Folium map
-        centroid = boundary.geometry.centroid.iloc[0]
-        m = folium.Map(location=[centroid.y, centroid.x], zoom_start=13)
+        if isinstance(result_info, str) and result_info.startswith("Error"):
+            st.error(result_info)
+        elif city_boundary is None:
+            st.warning("No results found.")
+        else:
+            st.success(f"Showing results for: {result_info}")
 
-        # Add layers
-        folium.GeoJson(boundary.geometry, name="City Boundary", style_function=lambda x: {
-            "color": "blue", "weight": 2, "fillOpacity": 0.1
-        }).add_to(m)
+            # Center map on city centroid
+            centroid = city_boundary.geometry.iloc[0].centroid
+            m = folium.Map(location=[centroid.y, centroid.x], zoom_start=14, tiles="cartodbpositron")
 
-        folium.GeoJson(streets.geometry, name="Streets", style_function=lambda x: {
-            "color": "black", "weight": 1
-        }).add_to(m)
+            # City boundary
+            folium.GeoJson(city_boundary.geometry.iloc[0], name="City Boundary", style_function=lambda x: {
+                'fillColor': 'blue', 'color': 'blue', 'fillOpacity': 0.1
+            }).add_to(m)
 
-        folium.GeoJson(buildings.geometry, name="Buildings", style_function=lambda x: {
-            "color": "gray", "weight": 0.5, "fillOpacity": 0.3
-        }).add_to(m)
+            # Streets
+            folium.GeoJson(streets, name="Streets", style_function=lambda x: {
+                'color': 'gray', 'weight': 1
+            }).add_to(m)
 
-        folium.LayerControl().add_to(m)
+            # Buildings
+            folium.GeoJson(buildings, name="Buildings", style_function=lambda x: {
+                'fillColor': 'orange', 'color': 'orange', 'weight': 0.5, 'fillOpacity': 0.4
+            }).add_to(m)
 
-        # Show map in Streamlit
-        st_folium(m, width=1000, height=600)
-    else:
-        st.warning("Could not retrieve data. Please check the city name.")
+            folium.LayerControl().add_to(m)
+
+            st_data = st_folium(m, width=1200, height=600)
