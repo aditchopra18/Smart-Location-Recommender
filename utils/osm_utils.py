@@ -8,7 +8,7 @@ def get_city_data(city_name: str):
 
         # Filter: Only city-level results
         city_gdf = gdf[gdf['type'].isin(['city', 'administrative'])]  # 'administrative' often includes cities
-
+    
         if city_gdf.empty:
             return None, None, "No city-level match found."
 
@@ -22,7 +22,7 @@ def get_city_data(city_name: str):
         street_gdf = ox.graph_to_gdfs(graph, nodes=False)
 
         tags = {'building': True}
-        buildings = ox.geometries_from_point((location_point.y, location_point.x), tags=tags, dist=3000)
+        buildings = ox.features_from_point((location_point.y, location_point.x), tags=tags, dist=3000)
         buildings = buildings[['geometry']]
         buildings = buildings[buildings.geometry.type.isin(['Polygon', 'MultiPolygon'])]
 
